@@ -59,15 +59,15 @@ func main() {
 
 	dbConn, err := sqlx.Open(driver, env.ServiceDSN)
 	if err != nil {
-		log.Fatalf("failed setting up db connection : %v", err)
+		logger.Fatal("failed initializing db connection", zap.Error(err))
 	}
 
 	defer dbConn.Close()
 
-	// err = dbConn.Ping()
-	// if err != nil {
-	// 	log.Fatalf("failed pinging db")
-	// }
+	err = dbConn.Ping()
+	if err != nil {
+		logger.Fatal("failed pinging database", zap.Error(err))
+	}
 
 	dbConn.SetConnMaxLifetime(env.DbConnMaxLife)
 	dbConn.SetMaxIdleConns(env.DbMaxIdleConns)
