@@ -12,6 +12,8 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/hoodcops/xcore/pkg/api/v1"
+	"github.com/hoodcops/xcore/pkg/twilio"
 	"github.com/jmoiron/sqlx"
 	"github.com/kelseyhightower/envconfig"
 	"go.uber.org/zap"
@@ -24,15 +26,16 @@ const (
 )
 
 var env = struct {
-	Port                     int           `envconfig:"PORT" required:"true"`
-	Environment              string        `envconfig:"ENVIRONMENT" default:"development"`
-	ServiceDSN               string        `envconfig:"SERVICE_DSN" required:"true"`
-	DbConnMaxLife            time.Duration `envconfig:"DB_CONN_MAX_LIFE" default:"14400s"`
-	DbMaxIdleConns           int           `envconfig:"DB_MAX_IDLE_CONNS" default:"50"`
-	DbMaxOpenConns           int           `envconfig:"DB_MAX_OPEN_CONNS" default:"100"`
-	City                     string        `envconfig:"CITY" required:"true"`
-	Locale                   string        `envconfig:"LOCALE" default:"en"`
-	TwilioVerificationAPIKey string        `envconfig:"TWILIO_VERIFICATION_API_KEY" required:"true"`
+	Port                      int           `envconfig:"PORT" required:"true"`
+	Environment               string        `envconfig:"ENVIRONMENT" default:"development"`
+	ServiceDSN                string        `envconfig:"SERVICE_DSN" required:"true"`
+	DbConnMaxLife             time.Duration `envconfig:"DB_CONN_MAX_LIFE" default:"14400s"`
+	DbMaxIdleConns            int           `envconfig:"DB_MAX_IDLE_CONNS" default:"50"`
+	DbMaxOpenConns            int           `envconfig:"DB_MAX_OPEN_CONNS" default:"100"`
+	City                      string        `envconfig:"CITY" required:"true"`
+	Locale                    string        `envconfig:"LOCALE" default:"en"`
+	TwilioVerificationAPIHost string        `envconfig:"TWILIO_VERIFICATION_API_HOST" required:"true"`
+	TwilioVerificationAPIKey  string        `envconfig:"TWILIO_VERIFICATION_API_KEY" required:"true"`
 }{}
 
 func init() {
@@ -82,11 +85,21 @@ func main() {
 	}
 	defer listener.Close()
 
+	client := &http.Client{Timeout: 30 * time.Second}
+	verifier := twilio.NewTwilioVerifier(
+		client,
+		env.TwilioVerificationAPIHost,
+		env.Locale,
+		env.TwilioVerificationAPIKey,
+	)
+
+	routes := v1.InitRoutes(dbConn, verifier, logger)
+
 	server := http.Server{
 		ReadHeaderTimeout: 30 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,
-		Handler:           nil,
+		Handler:           routes,
 	}
 
 	sigs := make(chan os.Signal, 1)
@@ -97,7 +110,7 @@ func main() {
 		defer close(connsClosed)
 
 		recv := <-sigs
-		logger.Info("received signal, shutting down", zap.Any("signal", recv.String))
+		logger.Info("received signal, shutting down", zap.Any("signal", recv.String()))
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
