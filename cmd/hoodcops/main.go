@@ -24,12 +24,15 @@ const (
 )
 
 var env = struct {
-	Port           int           `envconfig:"PORT" required:"true"`
-	Environment    string        `envconfig:"ENVIRONMENT" default:"development"`
-	ServiceDSN     string        `envconfig:"SERVICE_DSN" required:"true"`
-	DbConnMaxLife  time.Duration `envconfig:"DB_CONN_MAX_LIFE" default:"14400s"`
-	DbMaxIdleConns int           `envconfig:"DB_MAX_IDLE_CONNS" default:"50"`
-	DbMaxOpenConns int           `envconfig:"DB_MAX_OPEN_CONNS" default:"100"`
+	Port                     int           `envconfig:"PORT" required:"true"`
+	Environment              string        `envconfig:"ENVIRONMENT" default:"development"`
+	ServiceDSN               string        `envconfig:"SERVICE_DSN" required:"true"`
+	DbConnMaxLife            time.Duration `envconfig:"DB_CONN_MAX_LIFE" default:"14400s"`
+	DbMaxIdleConns           int           `envconfig:"DB_MAX_IDLE_CONNS" default:"50"`
+	DbMaxOpenConns           int           `envconfig:"DB_MAX_OPEN_CONNS" default:"100"`
+	City                     string        `envconfig:"CITY" required:"true"`
+	Locale                   string        `envconfig:"LOCALE" default:"en"`
+	TwilioVerificationAPIKey string        `envconfig:"TWILIO_VERIFICATION_API_KEY" required:"true"`
 }{}
 
 func init() {
