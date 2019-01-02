@@ -1,0 +1,8 @@
+version: "3"
+services:
+  hoodcops:
+    build: .
+    ports:
+      - "9000:9000"
+    env_file: 
+      - .vars
