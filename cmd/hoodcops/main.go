@@ -29,6 +29,7 @@ var env = struct {
 	Port                      int           `envconfig:"PORT" required:"true"`
 	Environment               string        `envconfig:"ENVIRONMENT" default:"development"`
 	ServiceDSN                string        `envconfig:"SERVICE_DSN" required:"true"`
+	SecretKey                 string        `envconfig:"SECRET_KEY" required:"true"`
 	DbConnMaxLife             time.Duration `envconfig:"DB_CONN_MAX_LIFE" default:"14400s"`
 	DbMaxIdleConns            int           `envconfig:"DB_MAX_IDLE_CONNS" default:"50"`
 	DbMaxOpenConns            int           `envconfig:"DB_MAX_OPEN_CONNS" default:"100"`
@@ -93,7 +94,7 @@ func main() {
 		env.TwilioVerificationAPIKey,
 	)
 
-	routes := v1.InitRoutes(dbConn, verifier, logger)
+	routes := v1.InitRoutes(dbConn, verifier, env.SecretKey, logger)
 
 	server := http.Server{
 		ReadHeaderTimeout: 30 * time.Second,

@@ -5,13 +5,12 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi"
-	"github.com/go-chi/render"
 	"github.com/hoodcops/xcore/pkg/twilio"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
 )
 
-func startSignIn(db *sqlx.DB, verifier *twilio.TwilioVerifier, logger *zap.Logger) http.HandlerFunc {
+func startSignIn(verifier *twilio.TwilioVerifier, logger *zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var payload = struct {
 			CountryCode string `json:"countryCode"`
@@ -20,8 +19,21 @@ func startSignIn(db *sqlx.DB, verifier *twilio.TwilioVerifier, logger *zap.Logge
 
 		err := json.NewDecoder(r.Body).Decode(&payload)
 		if err != nil {
-			logger.Error("failed decoding request payload", zap.Error(err))
-			http.Error(w, "failed decoding request payload", http.StatusBadRequest)
+			respondAsBadRequest(w, NewInvalidPayloadResponse(err))
+			return
+		}
+
+		errRes := NewErrorResponse("Missing values for required parameters")
+		if len(payload.CountryCode) == 0 {
+			errRes.AddError(NewMissingParamError("countryCode"))
+		}
+
+		if len(payload.PhoneNumber) == 0 {
+			errRes.AddError(NewMissingParamError("phoneNumber"))
+		}
+
+		if errRes.HasErrors() {
+			respondAsBadRequest(w, errRes)
 			return
 		}
 
@@ -32,15 +44,15 @@ func startSignIn(db *sqlx.DB, verifier *twilio.TwilioVerifier, logger *zap.Logge
 				zap.Error(err),
 			)
 
-			http.Error(w, "failed sending verification code", http.StatusInternalServerError)
+			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
 			return
 		}
 
-		render.JSON(w, r, Response{Data: payload, Info: "Verification code sent successfully"})
+		respondWithData(w, OkResponse{Data: payload, Info: "Verification code sent successfully"})
 	}
 }
 
-func verifyCode(db *sqlx.DB, verifier *twilio.TwilioVerifier, logger *zap.Logger) http.HandlerFunc {
+func verifyCode(verifier *twilio.TwilioVerifier, logger *zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var payload = struct {
 			CountryCode      string `json:"countryCode"`
@@ -50,8 +62,25 @@ func verifyCode(db *sqlx.DB, verifier *twilio.TwilioVerifier, logger *zap.Logger
 
 		err := json.NewDecoder(r.Body).Decode(&payload)
 		if err != nil {
-			logger.Error("failed decoding request payload", zap.Error(err))
-			http.Error(w, "failed decoding request payload", http.StatusBadRequest)
+			respondAsBadRequest(w, NewInvalidPayloadResponse(err))
+			return
+		}
+
+		errRes := NewErrorResponse("Missing values for required parameters")
+		if len(payload.CountryCode) == 0 {
+			errRes.AddError(NewMissingParamError("countryCode"))
+		}
+
+		if len(payload.PhoneNumber) == 0 {
+			errRes.AddError(NewMissingParamError("phoneNumber"))
+		}
+
+		if len(payload.VerificationCode) == 0 {
+			errRes.AddError(NewMissingParamError("verificationCode"))
+		}
+
+		if errRes.HasErrors() {
+			respondAsBadRequest(w, errRes)
 			return
 		}
 
@@ -63,18 +92,66 @@ func verifyCode(db *sqlx.DB, verifier *twilio.TwilioVerifier, logger *zap.Logger
 				zap.Error(err),
 			)
 
-			http.Error(w, "failed verifying phone number", http.StatusInternalServerError)
+			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
 			return
 		}
 
-		render.JSON(w, r, Response{Data: payload, Info: "Phone number verified successfully"})
+		respondWithData(w, OkResponse{Data: payload, Info: "Phone number verified successfully"})
 	}
 }
 
-func mobileUsersRoutes(db *sqlx.DB, verifier *twilio.TwilioVerifier, logger *zap.Logger) *chi.Mux {
+// func createUser(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
+// 	return func(w http.ResponseWriter, r *http.Request) {
+// 		var payload = struct {
+// 			PhoneNumber string `json:"phoneNumber"`
+// 		}{}
+
+// 		err := json.NewDecoder(r.Body).Decode(&payload)
+// 		if err != nil {
+// 			logger.Error("failed decoding request payload", zap.Error(err))
+// 			http.Error(w, "failed decoding request payload", http.StatusBadRequest)
+// 			return
+// 		}
+
+// 		repo := db.NewMobileUsersRepo(dbConn)
+// 		user, err := repo.GetByPhoneNumber(payload.PhoneNumber)
+// 		if err != nil {
+// 			logger.Error("failed checking if user exists", zap.Error(err))
+// 			http.Error(w, "failed checking if user exists", http.StatusInternalServerError)
+// 			return
+// 		}
+
+// 		if user != nil {
+// 			logger.Info("user does not already exist. creating new user")
+
+// 			user = &db.MobileUser{
+// 				Msisdn:      payload.PhoneNumber,
+// 				CreatedAt:   time.Now(),
+// 				LastLoginAt: time.Now(),
+// 			}
+
+// 			user, err = repo.Create(user)
+// 			if err != nil {
+// 				logger.Error("failed saving new mobile user", zap.Error(err))
+// 				http.Error(w, "failed saving new mobile user", http.StatusBadRequest)
+// 				return
+// 			}
+
+// 			render.JSON(w, r, Response{Data: user, Info: "Account created successfully"})
+// 		} else {
+
+// 			render.JSON(w, r, Response{Data: user, Info: "Account created successfully"})
+// 		}
+
+// 	}
+// }
+
+func mobileUsersRoutes(dbConn *sqlx.DB, verifier *twilio.TwilioVerifier, secretKey string, logger *zap.Logger) *chi.Mux {
 	router := chi.NewRouter()
-	router.Post("/signin/start", startSignIn(db, verifier, logger))
-	router.Post("/signin/verify", verifyCode(db, verifier, logger))
+	// router.Post("/signin/start", ValidateJWT(startSignIn(verifier, logger), secretKey))
+	router.Post("/signin/start", startSignIn(verifier, logger))
+	router.Post("/signin/verify", verifyCode(verifier, logger))
+	// router.Post("/signin/finish", createUser(dbConn, logger))
 
 	return router
 }

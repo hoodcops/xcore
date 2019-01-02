@@ -61,3 +61,18 @@ func (repo *MobileUsersRepo) GetAll() ([]*MobileUser, error) {
 
 	return users, nil
 }
+
+// GetByPhoneNumber queries the database to return the record of the mobile
+// user with the specified msisdn. It also returns an error if the
+// operation fails
+func (repo *MobileUsersRepo) GetByPhoneNumber(phoneNumber string) (*MobileUser, error) {
+	user := new(MobileUser)
+
+	sql := "SELECT u.* FROM mobile_users AS u WHERE u.msisdn = ?"
+	err := repo.db.QueryRowx(sql, phoneNumber).StructScan(user)
+	if err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}

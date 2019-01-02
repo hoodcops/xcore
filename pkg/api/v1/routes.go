@@ -12,10 +12,11 @@ import (
 func InitRoutes(
 	db *sqlx.DB,
 	verifier *twilio.TwilioVerifier,
+	secret string,
 	logger *zap.Logger,
 ) *chi.Mux {
 	router := chi.NewRouter()
-	router.Mount("/v1/users", mobileUsersRoutes(db, verifier, logger))
+	router.Mount("/v1/users", mobileUsersRoutes(db, verifier, secret, logger))
 
 	return router
 }

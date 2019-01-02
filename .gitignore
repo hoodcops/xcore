@@ -13,3 +13,6 @@
 
 # Environment variables file
 .vars
+
+# Visual Studio Code
+.vscode/*
