@@ -3,7 +3,9 @@ package v1
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
 	"github.com/hoodcops/xcore/pkg/db"
 	"github.com/hoodcops/xcore/pkg/twilio"
@@ -101,7 +103,7 @@ func verifyCode(verifier *twilio.TwilioVerifier, logger *zap.Logger) http.Handle
 	}
 }
 
-func createUser(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
+func createUser(dbConn *sqlx.DB, secretKey string, logger *zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var payload = struct {
 			PhoneNumber string `json:"phoneNumber"`
@@ -133,7 +135,22 @@ func createUser(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
 
 		// user already exists in database
 		if user != nil {
-			respondWithData(w, OkResponse{Data: user, Info: "Welcome back!"})
+			token, err := generateToken(user.Msisdn)
+			if err != nil {
+				logger.Error("failed generating JWT for user", zap.String("phoneNumber", user.Msisdn), zap.Error(err))
+				respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+				return
+			}
+
+			respondWithData(w, struct {
+				Data      interface{} `json:"data"`
+				AuthToken string      `json:"authToken"`
+				Info      string      `json:"info"`
+			}{
+				Data:      user,
+				AuthToken: token,
+				Info:      "Welcome back!",
+			})
 			return
 		}
 
@@ -148,7 +165,22 @@ func createUser(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
 			return
 		}
 
-		respondWithData(w, OkResponse{Data: user})
+		token, err := generateToken(user.Msisdn)
+		if err != nil {
+			logger.Error("failed generating JWT for user", zap.String("phoneNumber", user.Msisdn), zap.Error(err))
+			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+			return
+		}
+
+		respondWithData(w, struct {
+			Data      interface{} `json:"data"`
+			AuthToken string      `json:"authToken"`
+			Info      string      `json:"info"`
+		}{
+			Data:      user,
+			AuthToken: token,
+			Info:      "Welcome to Hoodcops!",
+		})
 	}
 }
 
@@ -166,11 +198,27 @@ func getAllMobileUsers(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
 	}
 }
 
+func generateToken(msisdn string) (string, error) {
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+
+	claims["authorized"] = true
+	claims["user"] = "edward pie"
+	claims["exp"] = time.Now().Add(time.Minute * 30).Unix()
+
+	tokenString, err := token.SignedString([]byte(`sdfsd`))
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
 func mobileUsersRoutes(dbConn *sqlx.DB, verifier *twilio.TwilioVerifier, secretKey string, logger *zap.Logger) *chi.Mux {
 	router := chi.NewRouter()
 	// router.Post("/signin/start", ValidateJWT(startSignIn(verifier, logger), secretKey))
 	router.Get("/", getAllMobileUsers(dbConn, logger))
-	router.Post("/", createUser(dbConn, logger))
+	router.Post("/", createUser(dbConn, secretKey, logger))
 	router.Post("/signin/start", startSignIn(verifier, logger))
 	router.Post("/signin/verify", verifyCode(verifier, logger))
 
