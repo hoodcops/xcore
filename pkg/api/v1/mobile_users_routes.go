@@ -113,6 +113,42 @@ func createUser(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
 			return
 		}
 
+		errRes := NewErrorResponse("Missing values for required parameters")
+		if len(payload.PhoneNumber) == 0 {
+			errRes.AddError(NewMissingParamError("phoneNumber"))
+		}
+
+		if errRes.HasErrors() {
+			respondAsBadRequest(w, errRes)
+			return
+		}
+
+		repo := db.NewMobileUsersRepo(dbConn)
+		user, err := repo.GetByPhoneNumber(payload.PhoneNumber)
+		if err != nil {
+			logger.Error("failed checking if user already exists in db", zap.String("phoneNumber", payload.PhoneNumber), zap.Error(err))
+			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+			return
+		}
+
+		// user already exists in database
+		if user != nil {
+			respondWithData(w, OkResponse{Data: user, Info: "Welcome back!"})
+			return
+		}
+
+		user = &db.MobileUser{
+			Msisdn: payload.PhoneNumber,
+		}
+
+		user, err = repo.Create(user)
+		if err != nil {
+			logger.Error("failed saving user into db", zap.String("phoneNumber", payload.PhoneNumber), zap.Error(err))
+			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+			return
+		}
+
+		respondWithData(w, OkResponse{Data: user})
 	}
 }
 
@@ -134,9 +170,9 @@ func mobileUsersRoutes(dbConn *sqlx.DB, verifier *twilio.TwilioVerifier, secretK
 	router := chi.NewRouter()
 	// router.Post("/signin/start", ValidateJWT(startSignIn(verifier, logger), secretKey))
 	router.Get("/", getAllMobileUsers(dbConn, logger))
+	router.Post("/", createUser(dbConn, logger))
 	router.Post("/signin/start", startSignIn(verifier, logger))
 	router.Post("/signin/verify", verifyCode(verifier, logger))
-	// router.Post("/signin/finish", createUser(dbConn, logger))
 
 	return router
 }
