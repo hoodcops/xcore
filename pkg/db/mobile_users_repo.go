@@ -9,10 +9,10 @@ import (
 // MobileUser is any user who signs up onto the platform
 // via the mobile app with a verified phone number
 type MobileUser struct {
-	ID          int       `db:"id" json:"id"`
-	Msisdn      string    `db:"msisdn" json:"msisdn"`
-	CreatedAt   time.Time `db:"created_at" json:"createdAt"`
-	LastLoginAt time.Time `db:"last_login_at" json:"lastLoginAt"`
+	ID          int          `db:"id" json:"id"`
+	Msisdn      string       `db:"msisdn" json:"msisdn"`
+	CreatedAt   time.Time    `db:"created_at" json:"createdAt"`
+	LastLoginAt NullableTime `db:"last_login_at" json:"lastLoginAt"`
 }
 
 // MobileUsersRepo defines methods for interacting with mobile user
@@ -66,13 +66,13 @@ func (repo *MobileUsersRepo) GetAll() ([]*MobileUser, error) {
 // user with the specified msisdn. It also returns an error if the
 // operation fails
 func (repo *MobileUsersRepo) GetByPhoneNumber(phoneNumber string) (*MobileUser, error) {
-	user := new(MobileUser)
+	user := MobileUser{}
 
 	sql := "SELECT u.* FROM mobile_users AS u WHERE u.msisdn = ?"
-	err := repo.db.QueryRowx(sql, phoneNumber).StructScan(user)
+	err := repo.db.QueryRowx(sql, phoneNumber).StructScan(&user)
 	if err != nil {
 		return nil, err
 	}
 
-	return user, nil
+	return &user, nil
 }

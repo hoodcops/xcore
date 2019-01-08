@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi"
+	"github.com/hoodcops/xcore/pkg/db"
 	"github.com/hoodcops/xcore/pkg/twilio"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
@@ -100,55 +101,39 @@ func verifyCode(verifier *twilio.TwilioVerifier, logger *zap.Logger) http.Handle
 	}
 }
 
-// func createUser(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
-// 	return func(w http.ResponseWriter, r *http.Request) {
-// 		var payload = struct {
-// 			PhoneNumber string `json:"phoneNumber"`
-// 		}{}
+func createUser(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var payload = struct {
+			PhoneNumber string `json:"phoneNumber"`
+		}{}
 
-// 		err := json.NewDecoder(r.Body).Decode(&payload)
-// 		if err != nil {
-// 			logger.Error("failed decoding request payload", zap.Error(err))
-// 			http.Error(w, "failed decoding request payload", http.StatusBadRequest)
-// 			return
-// 		}
+		err := json.NewDecoder(r.Body).Decode(&payload)
+		if err != nil {
+			respondAsBadRequest(w, NewInvalidPayloadResponse(err))
+			return
+		}
 
-// 		repo := db.NewMobileUsersRepo(dbConn)
-// 		user, err := repo.GetByPhoneNumber(payload.PhoneNumber)
-// 		if err != nil {
-// 			logger.Error("failed checking if user exists", zap.Error(err))
-// 			http.Error(w, "failed checking if user exists", http.StatusInternalServerError)
-// 			return
-// 		}
+	}
+}
 
-// 		if user != nil {
-// 			logger.Info("user does not already exist. creating new user")
+func getAllMobileUsers(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		repo := db.NewMobileUsersRepo(dbConn)
+		users, err := repo.GetAll()
+		if err != nil {
+			logger.Error("failed fetching all mobile users from db", zap.Error(err))
+			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+			return
+		}
 
-// 			user = &db.MobileUser{
-// 				Msisdn:      payload.PhoneNumber,
-// 				CreatedAt:   time.Now(),
-// 				LastLoginAt: time.Now(),
-// 			}
-
-// 			user, err = repo.Create(user)
-// 			if err != nil {
-// 				logger.Error("failed saving new mobile user", zap.Error(err))
-// 				http.Error(w, "failed saving new mobile user", http.StatusBadRequest)
-// 				return
-// 			}
-
-// 			render.JSON(w, r, Response{Data: user, Info: "Account created successfully"})
-// 		} else {
-
-// 			render.JSON(w, r, Response{Data: user, Info: "Account created successfully"})
-// 		}
-
-// 	}
-// }
+		respondWithData(w, OkResponse{Data: users})
+	}
+}
 
 func mobileUsersRoutes(dbConn *sqlx.DB, verifier *twilio.TwilioVerifier, secretKey string, logger *zap.Logger) *chi.Mux {
 	router := chi.NewRouter()
 	// router.Post("/signin/start", ValidateJWT(startSignIn(verifier, logger), secretKey))
+	router.Get("/", getAllMobileUsers(dbConn, logger))
 	router.Post("/signin/start", startSignIn(verifier, logger))
 	router.Post("/signin/verify", verifyCode(verifier, logger))
 	// router.Post("/signin/finish", createUser(dbConn, logger))
