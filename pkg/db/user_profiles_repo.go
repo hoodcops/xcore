@@ -10,7 +10,7 @@ import (
 // of mobile users
 type UserProfile struct {
 	ID        int          `db:"id" json:"id"`
-	UserID    int          `db:"userId" json:"userId"`
+	UserID    int          `db:"user_id" json:"userId"`
 	Title     string       `db:"title" json:"title"`
 	Fullname  string       `db:"fullname" json:"fullname"`
 	Street    string       `db:"street" json:"street"`
@@ -63,4 +63,18 @@ func (repo *UserProfilesRepo) Create(profile *UserProfile) (*UserProfile, error)
 
 	profile.ID = int(id)
 	return profile, nil
+}
+
+// GetAll returns records of all user profiles in the database,
+// or an error if the operation fails
+func (repo *UserProfilesRepo) GetAll() ([]*UserProfile, error) {
+	query := "SELECT * FROM mobile_user_profiles"
+	var profiles []*UserProfile
+
+	err := repo.db.Select(&profiles, query)
+	if err != nil {
+		return nil, err
+	}
+
+	return profiles, nil
 }

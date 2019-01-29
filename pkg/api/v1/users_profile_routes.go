@@ -32,10 +32,25 @@ func createUserProfile(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
 	}
 }
 
+func getAllUserProfiles(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		repo := db.NewUserProfilesRepo(dbConn)
+		users, err := repo.GetAll()
+		if err != nil {
+			logger.Error("failed fetching all user profiles from db", zap.Error(err))
+			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+			return
+		}
+
+		respondWithData(w, OkResponse{Data: users})
+	}
+}
+
 func userProfilesRoutes(dbConn *sqlx.DB, logger *zap.Logger) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Post("/", createUserProfile(dbConn, logger))
+	router.Get("/", getAllUserProfiles(dbConn, logger))
 
 	return router
 }

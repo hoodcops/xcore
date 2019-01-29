@@ -78,6 +78,9 @@ CREATE TABLE IF NOT EXISTS mobile_user_profiles
     CONSTRAINT fk_mobile_user_profiles_user_id  FOREIGN KEY  (user_id) REFERENCES mobile_users(id)
 );
 
+-- name: create-mobile-user-profiles-index
+CREATE UNIQUE INDEX mobile_user_profiles_index ON mobile_user_profiles(user_id);
+
 -- name: create-mobile-user-alerts
 CREATE TABLE IF NOT EXISTS mobile_user_alerts
 (
