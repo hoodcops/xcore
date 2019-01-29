@@ -219,6 +219,7 @@ func mobileUsersRoutes(dbConn *sqlx.DB, verifier *twilio.TwilioVerifier, secretK
 	// router.Post("/signin/start", ValidateJWT(startSignIn(verifier, logger), secretKey))
 	router.Get("/", getAllMobileUsers(dbConn, logger))
 	router.Post("/", createUser(dbConn, secretKey, logger))
+	router.Post("/{userId}/profile", createUserProfile(dbConn, logger))
 	router.Post("/signin/start", startSignIn(verifier, logger))
 	router.Post("/signin/verify", verifyCode(verifier, logger))
 
