@@ -31,7 +31,18 @@ func NewUserContactsRepo(db *sqlx.DB) *UserContactsRepo {
 
 // CreateContacts inserts contacts into the database
 func (repo *UserContactsRepo) CreateContacts(contacts []*UserContact) ([]*UserContact, error) {
-	return contacts, nil
+	savedContacts := make([]*UserContact, 0)
+
+	for _, contact := range contacts {
+		savedContact, err := repo.insert(contact)
+		if err != nil {
+			return nil, err
+		}
+
+		savedContacts = append(savedContacts, savedContact)
+	}
+
+	return savedContacts, nil
 }
 
 // GetAll returns all mobile user contacts in the database
@@ -45,4 +56,20 @@ func (repo *UserContactsRepo) GetAll() ([]*UserContact, error) {
 	}
 
 	return contacts, nil
+}
+
+func (repo *UserContactsRepo) insert(contact *UserContact) (*UserContact, error) {
+	sql := "INSERT INTO mobile_user_contacts (user_id, msisdn, fullname) VALUES (?, ?, ?)"
+	res, err := repo.db.Exec(sql, contact.UserID, contact.Msisdn, contact.Fullname)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := res.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	contact.ID = int(id)
+	return contact, nil
 }
