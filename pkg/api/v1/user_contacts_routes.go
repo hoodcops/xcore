@@ -42,7 +42,15 @@ func createContacts(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
 
 func getAllContacts(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		repo := db.NewUserContactsRepo(dbConn)
+		contacts, err := repo.GetAll()
+		if err != nil {
+			logger.Debug("failed fetching all contacts from database", zap.Error(err))
+			renderBadRequest(w, NewInternalServerErrorResponse(err))
+			return
+		}
 
+		renderData(w, OkResponse{Data: contacts})
 	}
 }
 
