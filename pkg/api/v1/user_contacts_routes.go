@@ -3,6 +3,7 @@ package v1
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi"
 	"github.com/hoodcops/xcore/pkg/db"
@@ -54,11 +55,34 @@ func getAllContacts(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
 	}
 }
 
+func getUserContacts(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		repo := db.NewUserContactsRepo(dbConn)
+
+		userID, err := strconv.Atoi(chi.URLParam(r, "userId"))
+		if err != nil {
+			logger.Debug("failed parsing user id from url", zap.Error(err))
+			renderBadRequest(w, NewInternalServerErrorResponse(err))
+			return
+		}
+
+		contacts, err := repo.GetUserContacts(userID)
+		if err != nil {
+			logger.Debug("failed fetching user contacts from database", zap.Int("userId", userID))
+			renderBadRequest(w, NewInternalServerErrorResponse(err))
+			return
+		}
+
+		renderData(w, OkResponse{Data: contacts})
+	}
+}
+
 func userContactsRoutes(dbConn *sqlx.DB, logger *zap.Logger) *chi.Mux {
 	router := chi.NewRouter()
 
 	router.Post("/", createContacts(dbConn, logger))
 	router.Get("/", getAllContacts(dbConn, logger))
+	router.Get("/{userId}", getUserContacts(dbConn, logger))
 
 	return router
 }

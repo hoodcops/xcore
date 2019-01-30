@@ -73,3 +73,16 @@ func (repo *UserContactsRepo) insert(contact *UserContact) (*UserContact, error)
 	contact.ID = int(id)
 	return contact, nil
 }
+
+// GetUserContacts returns a mobile user's uploaded phone contacts
+func (repo *UserContactsRepo) GetUserContacts(userID int) ([]*UserContact, error) {
+	query := "SELECT * FROM mobile_user_contacts WHERE user_id = ?"
+	var contacts []*UserContact
+
+	err := repo.db.Select(&contacts, query, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return contacts, nil
+}
