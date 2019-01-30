@@ -33,3 +33,16 @@ func NewUserContactsRepo(db *sqlx.DB) *UserContactsRepo {
 func (repo *UserContactsRepo) CreateContacts(contacts []*UserContact) ([]*UserContact, error) {
 	return contacts, nil
 }
+
+// GetAll returns all mobile user contacts in the database
+func (repo *UserContactsRepo) GetAll() ([]*UserContact, error) {
+	query := "SELECT * FROM mobile_user_contacts"
+	var contacts []*UserContact
+
+	err := repo.db.Select(&contacts, query)
+	if err != nil {
+		return nil, err
+	}
+
+	return contacts, nil
+}
