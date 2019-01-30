@@ -16,7 +16,7 @@ func createUserProfile(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
 
 		err := json.NewDecoder(r.Body).Decode(profile)
 		if err != nil {
-			respondAsBadRequest(w, NewInvalidPayloadResponse(err))
+			renderBadRequest(w, NewInvalidPayloadResponse(err))
 			return
 		}
 
@@ -24,11 +24,11 @@ func createUserProfile(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
 		profile, err = repo.Create(profile)
 		if err != nil {
 			logger.Error("failed creating user profile", zap.Error(err))
-			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+			renderInternalServerError(w, NewInternalServerErrorResponse(err))
 			return
 		}
 
-		respondWithData(w, OkResponse{Data: profile})
+		renderData(w, OkResponse{Data: profile})
 	}
 }
 
@@ -38,11 +38,11 @@ func getAllUserProfiles(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
 		users, err := repo.GetAll()
 		if err != nil {
 			logger.Error("failed fetching all user profiles from db", zap.Error(err))
-			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+			renderInternalServerError(w, NewInternalServerErrorResponse(err))
 			return
 		}
 
-		respondWithData(w, OkResponse{Data: users})
+		renderData(w, OkResponse{Data: users})
 	}
 }
 

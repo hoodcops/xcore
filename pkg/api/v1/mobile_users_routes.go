@@ -22,7 +22,8 @@ func startSignIn(verifier *twilio.TwilioVerifier, logger *zap.Logger) http.Handl
 
 		err := json.NewDecoder(r.Body).Decode(&payload)
 		if err != nil {
-			respondAsBadRequest(w, NewInvalidPayloadResponse(err))
+			logger.Error("failed parsing request body", zap.Error(err))
+			renderBadRequest(w, NewInvalidPayloadResponse(err))
 			return
 		}
 
@@ -36,7 +37,7 @@ func startSignIn(verifier *twilio.TwilioVerifier, logger *zap.Logger) http.Handl
 		}
 
 		if errRes.HasErrors() {
-			respondAsBadRequest(w, errRes)
+			renderBadRequest(w, errRes)
 			return
 		}
 
@@ -47,11 +48,11 @@ func startSignIn(verifier *twilio.TwilioVerifier, logger *zap.Logger) http.Handl
 				zap.Error(err),
 			)
 
-			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+			renderInternalServerError(w, NewInternalServerErrorResponse(err))
 			return
 		}
 
-		respondWithData(w, OkResponse{Data: payload, Info: "Verification code sent successfully"})
+		renderData(w, OkResponse{Data: payload, Info: "Verification code sent successfully"})
 	}
 }
 
@@ -65,7 +66,7 @@ func verifyCode(verifier *twilio.TwilioVerifier, logger *zap.Logger) http.Handle
 
 		err := json.NewDecoder(r.Body).Decode(&payload)
 		if err != nil {
-			respondAsBadRequest(w, NewInvalidPayloadResponse(err))
+			renderBadRequest(w, NewInvalidPayloadResponse(err))
 			return
 		}
 
@@ -83,7 +84,7 @@ func verifyCode(verifier *twilio.TwilioVerifier, logger *zap.Logger) http.Handle
 		}
 
 		if errRes.HasErrors() {
-			respondAsBadRequest(w, errRes)
+			renderBadRequest(w, errRes)
 			return
 		}
 
@@ -95,11 +96,11 @@ func verifyCode(verifier *twilio.TwilioVerifier, logger *zap.Logger) http.Handle
 				zap.Error(err),
 			)
 
-			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+			renderInternalServerError(w, NewInternalServerErrorResponse(err))
 			return
 		}
 
-		respondWithData(w, OkResponse{Data: payload, Info: "Phone number verified successfully"})
+		renderData(w, OkResponse{Data: payload, Info: "Phone number verified successfully"})
 	}
 }
 
@@ -111,7 +112,7 @@ func createUser(dbConn *sqlx.DB, secretKey string, logger *zap.Logger) http.Hand
 
 		err := json.NewDecoder(r.Body).Decode(&payload)
 		if err != nil {
-			respondAsBadRequest(w, NewInvalidPayloadResponse(err))
+			renderBadRequest(w, NewInvalidPayloadResponse(err))
 			return
 		}
 
@@ -121,7 +122,7 @@ func createUser(dbConn *sqlx.DB, secretKey string, logger *zap.Logger) http.Hand
 		}
 
 		if errRes.HasErrors() {
-			respondAsBadRequest(w, errRes)
+			renderBadRequest(w, errRes)
 			return
 		}
 
@@ -129,7 +130,7 @@ func createUser(dbConn *sqlx.DB, secretKey string, logger *zap.Logger) http.Hand
 		user, err := repo.GetByPhoneNumber(payload.PhoneNumber)
 		if err != nil {
 			logger.Error("failed checking if user already exists in db", zap.String("phoneNumber", payload.PhoneNumber), zap.Error(err))
-			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+			renderInternalServerError(w, NewInternalServerErrorResponse(err))
 			return
 		}
 
@@ -138,11 +139,11 @@ func createUser(dbConn *sqlx.DB, secretKey string, logger *zap.Logger) http.Hand
 			token, err := generateToken(user.Msisdn)
 			if err != nil {
 				logger.Error("failed generating JWT for user", zap.String("phoneNumber", user.Msisdn), zap.Error(err))
-				respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+				renderInternalServerError(w, NewInternalServerErrorResponse(err))
 				return
 			}
 
-			respondWithData(w, struct {
+			renderData(w, struct {
 				Data      interface{} `json:"data"`
 				AuthToken string      `json:"authToken"`
 				Info      string      `json:"info"`
@@ -161,18 +162,18 @@ func createUser(dbConn *sqlx.DB, secretKey string, logger *zap.Logger) http.Hand
 		user, err = repo.Create(user)
 		if err != nil {
 			logger.Error("failed saving user into db", zap.String("phoneNumber", payload.PhoneNumber), zap.Error(err))
-			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+			renderInternalServerError(w, NewInternalServerErrorResponse(err))
 			return
 		}
 
 		token, err := generateToken(user.Msisdn)
 		if err != nil {
 			logger.Error("failed generating JWT for user", zap.String("phoneNumber", user.Msisdn), zap.Error(err))
-			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+			renderInternalServerError(w, NewInternalServerErrorResponse(err))
 			return
 		}
 
-		respondWithData(w, struct {
+		renderData(w, struct {
 			Data      interface{} `json:"data"`
 			AuthToken string      `json:"authToken"`
 			Info      string      `json:"info"`
@@ -190,11 +191,11 @@ func getAllMobileUsers(dbConn *sqlx.DB, logger *zap.Logger) http.HandlerFunc {
 		users, err := repo.GetAll()
 		if err != nil {
 			logger.Error("failed fetching all mobile users from db", zap.Error(err))
-			respondAsInternalServerError(w, NewInternalServerErrorResponse(err))
+			renderInternalServerError(w, NewInternalServerErrorResponse(err))
 			return
 		}
 
-		respondWithData(w, OkResponse{Data: users})
+		renderData(w, OkResponse{Data: users})
 	}
 }
 

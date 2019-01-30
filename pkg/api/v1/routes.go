@@ -18,6 +18,7 @@ func InitRoutes(
 	router := chi.NewRouter()
 	router.Mount("/v1/users", mobileUsersRoutes(db, verifier, secret, logger))
 	router.Mount("/v1/profiles", userProfilesRoutes(db, logger))
+	router.Mount("/v1/contacts", userContactsRoutes(db, logger))
 
 	return router
 }

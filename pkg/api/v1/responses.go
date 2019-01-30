@@ -81,15 +81,15 @@ type OkResponse struct {
 	Info string      `json:"info"`
 }
 
-func respondWithData(w http.ResponseWriter, payload interface{}) {
+func renderData(w http.ResponseWriter, payload interface{}) {
 	renderJSON(w, http.StatusOK, payload)
 }
 
-func respondAsBadRequest(w http.ResponseWriter, payload interface{}) {
+func renderBadRequest(w http.ResponseWriter, payload interface{}) {
 	renderJSON(w, http.StatusBadRequest, payload)
 }
 
-func respondAsInternalServerError(w http.ResponseWriter, payload interface{}) {
+func renderInternalServerError(w http.ResponseWriter, payload interface{}) {
 	renderJSON(w, http.StatusInternalServerError, payload)
 }
 
